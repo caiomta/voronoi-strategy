@@ -129,7 +129,7 @@ $$C_w(u) = \sum_{v \in V} \frac{W[v]}{D[u][v] + 1}$$
 
 * Como toda partida possui exatamente $6$ rodadas ($3$ centros por equipe), a profundidade restante da árvore de busca a partir do estado atual é determinada automaticamente por:
 
-$$\text{profundidade\_restante} = 6 - (\vert{}A\vert{} + \vert{}B\vert{})$$
+$$\text{profundidade restante} = 6 - (\vert{}A\vert{} + \vert{}B\vert{})$$
 
 * A raiz da busca atual é sempre um nó **`MAX`** (pois a função só é invocada no turno da nossa equipe), alternando para **`MIN`** no nível seguinte até que `profundidade_restante == 0` ($\vert{}A\vert{} = 3$ e $\vert{}B\vert{} = 3$).
 * Isso garante que o mesmo motor de busca opere de forma unificada em qualquer rodada e papel ($P_1$ nas profundidades $6, 4, 2$ e $P_2$ nas profundidades $5, 3, 1$), com queda abrupta do custo computacional a cada turno.
@@ -157,7 +157,7 @@ Assim, $P_1$ busca sempre **maximizar** $U$ (valores mais positivos) e $P_2$ bus
 * Se `profundidade` for **ímpar** (`5, 3, 1`), somos $P_2$: `mask_P1 = mask_time_2`, `mask_P2 = mask_time_1` e a raiz busca **`MIN`**.
 * **Assinatura interna da recursão:** Como a paridade da profundidade define unicamente quem joga, o parâmetro booleano `is_max` torna-se dispensável:
 `minimax(mask_P1, mask_P2, profundidade, alfa, beta)`
-* **Caso base (Folhas):** Quando `profundidade == 0` ($\vert{}P_1\vert{} = 3$ e $\vert{}P_2\vert{} = 3$), a descida é interrompida e a função calcula e retorna diretamente a utilidade terminal exata $U(\text{mask\_P1}, \text{mask\_P2})$.
+* **Caso base (Folhas):** Quando `profundidade == 0` ($\vert{}P_1\vert{} = 3$ e $\vert{}P_2\vert{} = 3$), a descida é interrompida e a função calcula e retorna diretamente a utilidade terminal exata $U(\text{maskP1}, \text{maskP2})$.
 * **Expansão em profundidade par (`profundidade % 2 == 0`, nó `MAX` — turno de $P_1$):**
 * Inicializa `melhor_valor = -inf`.
 * Percorre os índices `i` seguindo a lista pré-ordenada `ordem_nos`, ignorando ocupados via `if (mask_P1 | mask_P2) & (1 << i): continue`.
@@ -184,9 +184,9 @@ Se `(mask_P1, mask_P2)` estiver em `memo`, recupera-se `(val_salvo, flag)`:
 * Se, após a atualização, ocorrer `alfa >= beta`: retorna `val_salvo` imediatamente (poda instantânea via cache).
 * **Fase de Atualização (após o laço de filhos):**
 Antes de retornar `melhor_valor`, classifica-se o resultado frente à janela original:
-* Se `melhor_valor <= alfa_orig`: salva `(melhor_valor, UPPER)` (*fail-low*: valor real é $\le \text{melhor\_valor}$).
-* Senão, se `melhor_valor >= beta_orig`: salva `(melhor_valor, LOWER)` (*fail-high*: valor real é $\ge \text{melhor\_valor}$).
-* Caso contrário ($\text{alfa\_orig} < \text{melhor\_valor} < \text{beta\_orig}$): salva `(melhor_valor, EXATO)`.
+* Se `melhor_valor <= alfa_orig`: salva `(melhor_valor, UPPER)` (*fail-low*: valor real é $\le \text{melhor valor}$).
+* Senão, se `melhor_valor >= beta_orig`: salva `(melhor_valor, LOWER)` (*fail-high*: valor real é $\ge \text{melhor valor}$).
+* Caso contrário ($\text{alfa original} < \text{melhor valor} < \text{beta original}$): salva `(melhor_valor, EXATO)`.
 
 ### 5.3. Aplicação dos cortes Alfa-Beta ($\alpha \ge \beta$)
 
@@ -265,7 +265,7 @@ $$C_w(u) = \sum_{v \in V} \frac{W[v]}{D[u][v] + 1}$$
 
 * Persistindo o empate e caso a nossa equipe já possua ao menos um centro alocado no tabuleiro (`mask_propria != 0`, onde `mask_propria` é `mask_P1` se somos $P_1$, ou `mask_P2` se somos $P_2$), prioriza-se o candidato $u$ que **maximiza a distância mínima até os nossos próprios centros já posicionados**:
 
-$$\max_{u} \min_{a \in \text{meus\_centros}} D[u][a]$$
+$$\max_{u} \min_{a \in \text{meus centros}} D[u][a]$$
 
 * Esse critério evita sobreposição territorial (canibalização de vértices que já estão próximos de um centro próprio), incentivando melhor cobertura espacial do grafo.
 
