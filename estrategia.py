@@ -1,7 +1,21 @@
 import networkx as nx
 
-CACHE = {}
+CACHE: dict[
+    str,
+    tuple  # idx_para_rotulo
+    | int  # n
+    | dict  # rotulo_para_idx
+    | tuple[float, ...]  # pesos, centralidades_ponderadas
+    | list[list[int]]  # matriz_distancias
+    | tuple[int],  # ordem_nos
+] = {}
+
 MEMO: dict[tuple[int, int], tuple[float, str]] = {}
+"""
+Estrutura:
+* chaves: dupla do bitmask do P_1 e do P_2
+* valores: dupla do melhor valor e a flag da poda (`EXATO`, `SUPERIOR`, `INFERIOR`)
+"""
 
 
 def minimax_com_poda_alfa_beta(grafo: nx.Graph): ...
