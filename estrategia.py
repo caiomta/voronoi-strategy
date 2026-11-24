@@ -143,7 +143,9 @@ def calcular_centralidade_ponderada(
 
 
 def gerar_vetor_de_centralidades_ponderadas(
-    pesos, matriz_distancias, n
+    pesos: tuple[float, ...],
+    matriz_distancias: list[list[int]],
+    n: int,
 ) -> tuple[float, ...]:
     """
     Gera o vetor da imagem da função que calcula a centralidade ponderada que conta com domínio os
