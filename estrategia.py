@@ -1,8 +1,5 @@
 import networkx as nx
 
-MEMO = {}
-CACHE = {}
-
 
 def minimax_com_poda_alfa_beta(grafo: nx.Graph): ...
 
@@ -61,8 +58,7 @@ def minimax(
     eh_min = bool(profundidade % 2)  # profundidade ímpar -> MIN, par -> MAX
     melhor_valor = float("+inf") if eh_min else float("-inf")
     mask_jogo = mask_p1 | mask_p2  # bitwise or gerando o bitmask geral do jogo
-    ordem_nos = CACHE["ordem_nos"]
-    for i in ordem_nos:
+    for i in CACHE.ordem_nos:
         mask_no_atual = 1 << i
         if mask_jogo & mask_no_atual:  # se o i-ésimo bit estiver ocupado
             continue
