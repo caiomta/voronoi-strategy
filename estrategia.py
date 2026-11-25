@@ -2,7 +2,7 @@ import networkx as nx
 
 
 def minimax_com_poda_alfa_beta(grafo: nx.Graph): ...
-  
+
 
 def avaliar_folha(mask_p1: int, mask_p2: int) -> float:
     n, pesos, matriz_distancias = CACHE.n, CACHE.pesos, CACHE.matriz_distancias
@@ -38,9 +38,9 @@ def avaliar_folha(mask_p1: int, mask_p2: int) -> float:
         # se d1 == d2 (incluindo empate de distância finita ou ambos inalcançaveis / inf)
         # o peso do vértice se anula na diferença de saldo (0)
     return saldo
-  
-  
- def extrair_tres_centros(mascara: int) -> tuple[int, int, int]:
+
+
+def extrair_tres_centros(mascara: int) -> tuple[int, int, int]:
     lsb = (
         mascara & -mascara
     )  # apaga todos os outros bits e deixa só o mais a direita aceso
@@ -52,7 +52,7 @@ def avaliar_folha(mask_p1: int, mask_p2: int) -> float:
     lsb = mascara & -mascara
     p3 = lsb.bit_length() - 1
     return p1, p2, p3
-  
+
 
 def minimax(
     mask_p1: int,
@@ -81,8 +81,7 @@ def minimax(
         O valor da melhor jogada encontrado pelo jogador da vez com base no estado atual.
     """
     if profundidade == 0:  # avaliar valor da folha (profundidade 0)
-        # TODO: avaliar folhas
-        ...
+        avaliar_folha(mask_p1, mask_p2)
 
     alfa_orig, beta_orig = alfa, beta
     chave_memo = (mask_p1, mask_p2)
@@ -148,6 +147,3 @@ def minimax(
         MEMO[chave_memo] = (melhor_valor, "EXATO")
 
     return melhor_valor
-
-
-
