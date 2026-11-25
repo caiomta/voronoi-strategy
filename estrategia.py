@@ -1,15 +1,38 @@
 import networkx as nx
 
-CACHE: dict[
-    str,
-    tuple  # idx_para_rotulo
-    | int  # n
-    | dict  # rotulo_para_idx
-    | tuple[float, ...]  # pesos, centralidades_ponderadas
-    | list[list[int]]  # matriz_distancias
-    | tuple[int],  # ordem_nos
-] = {}
 
+class Cache:
+    assinatura: tuple[tuple, tuple] | None = None
+    n: int
+    idx_para_rotulo: tuple
+    rotulo_para_idx: dict
+    pesos: tuple[float, ...]
+    matriz_distancias: tuple[tuple[int, ...], ...]
+    centralidades_ponderadas: tuple[float, ...]
+    ordem_nos: tuple[int, ...]
+
+    def update(
+        self,
+        assinatura: tuple[tuple, tuple],
+        n: int,
+        idx_para_rotulo: tuple,
+        rotulo_para_idx: dict,
+        pesos: tuple[float, ...],
+        matriz_distancias: tuple[tuple[int, ...], ...],
+        centralidades_ponderadas: tuple[float, ...],
+        ordem_nos: tuple[int, ...],
+    ) -> None:
+        self.assinatura = assinatura
+        self.n = n
+        self.idx_para_rotulo = idx_para_rotulo
+        self.rotulo_para_idx = rotulo_para_idx
+        self.pesos = pesos
+        self.matriz_distancias = matriz_distancias
+        self.centralidades_ponderadas = centralidades_ponderadas
+        self.ordem_nos = ordem_nos
+
+
+CACHE = Cache()
 MEMO: dict[tuple[int, int], tuple[float, str]] = {}
 """
 Estrutura:
@@ -27,7 +50,7 @@ def atualizar_cache(grafo: nx.Graph) -> None:
     """
     assinatura_atual = gerar_assinatura(grafo)
 
-    if CACHE.get("assinatura") == assinatura_atual:  # cache válido
+    if CACHE.assinatura == assinatura_atual:  # cache válido
         return
 
     MEMO.clear()
@@ -44,18 +67,15 @@ def atualizar_cache(grafo: nx.Graph) -> None:
     )
     ordem_nos = gerar_ordem_nos(centralidades_ponderadas, n)
 
-    CACHE.clear()
     CACHE.update(
-        {
-            "assinatura": assinatura_atual,
-            "n": n,
-            "rotulo_para_idx": rotulo_para_idx,
-            "idx_para_rotulo": idx_para_rotulo,
-            "pesos": pesos,
-            "matriz_distancias": matriz_distancias,
-            "centralidades_ponderadas": centralidades_ponderadas,
-            "ordem_nos": ordem_nos,
-        }
+        assinatura_atual,
+        n,
+        idx_para_rotulo,
+        rotulo_para_idx,
+        pesos,
+        matriz_distancias,
+        centralidades_ponderadas,
+        ordem_nos,
     )
 
 
@@ -125,7 +145,7 @@ def gerar_matriz_de_distancias(
     grafo: nx.Graph,
     rotulo_para_idx: dict,
     n: int,
-) -> list[list[int]]:
+) -> tuple[tuple[int, ...], ...]:
     """
     Gera uma matriz das menores distâncias entre `u` e `v`, sendo `u` e `v` qualquer par de `idx` no grafo.
     """
@@ -139,13 +159,13 @@ def gerar_matriz_de_distancias(
             v = rotulo_para_idx[destino]
             matriz[u][v] = distancia
 
-    return matriz
+    return tuple(tuple(linha) for linha in matriz)
 
 
 def calcular_centralidade_ponderada(
     u: int,
     pesos: tuple[float, ...],
-    matriz_distancias: list[list[int]],
+    matriz_distancias: tuple[tuple[int, ...], ...],
     n: int,
 ) -> float:
     """
@@ -158,7 +178,7 @@ def calcular_centralidade_ponderada(
 
 def gerar_vetor_de_centralidades_ponderadas(
     pesos: tuple[float, ...],
-    matriz_distancias: list[list[int]],
+    matriz_distancias: tuple[tuple[int, ...], ...],
     n: int,
 ) -> tuple[float, ...]:
     """
