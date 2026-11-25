@@ -18,7 +18,31 @@ Estrutura:
 """
 
 
-def minimax_com_poda_alfa_beta(grafo: nx.Graph): ...
+def minimax_com_poda_alfa_beta(grafo: nx.Graph):
+    atualizar_cache(grafo)
+    idx_para_rotulo = CACHE["idx_para_rotulo"]
+    mask_time_1 = 0
+    mask_time_2 = 0
+
+    for i, rotulo in enumerate(idx_para_rotulo):
+        time = grafo.nodes[rotulo]["time"]
+        if time == 1:
+            mask_time_1 |= 1 << i
+        elif time == 2:
+            mask_time_2 |= 1 << i
+        elif time == 0:
+            continue
+
+    qtd_1 = mask_time_1.bit_count()
+    qtd_2 = mask_time_2.bit_count()
+    profundidade = 6 - (qtd_1 + qtd_2)
+
+    if profundidade % 2 == 0:
+        mask_P1 = mask_time_1
+        mask_P2 = mask_time_2
+    else:
+        mask_P1 = mask_time_2
+        mask_P2 = mask_time_1
 
 
 def atualizar_cache(grafo: nx.Graph) -> None:
