@@ -81,7 +81,7 @@ def minimax(
         O valor da melhor jogada encontrado pelo jogador da vez com base no estado atual.
     """
     if profundidade == 0:  # avaliar valor da folha (profundidade 0)
-        avaliar_folha(mask_p1, mask_p2)
+        return avaliar_folha(mask_p1, mask_p2)
 
     alfa_orig, beta_orig = alfa, beta
     chave_memo = (mask_p1, mask_p2)
