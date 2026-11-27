@@ -5,8 +5,7 @@ GUARDA_C1 = {5: 6, 6: 2}
 
 
 class Cache:
-    """
-    Armazena os dados estáticos pré-computados do grafo atual do jogo para evitar recálculos
+    """Armazena os dados estáticos pré-computados do grafo atual do jogo para evitar recálculos
     entre rodadas e partidas disputadas no mesmo mapa.
 
     Attributes:
@@ -96,11 +95,7 @@ def atualizar_cache(grafo: nx.Graph) -> None:
     rotulo_para_idx = gerar_rotulo_para_idx(idx_para_rotulo, n)
     pesos = gerar_tupla_de_pesos(grafo, idx_para_rotulo, n)
     matriz_distancias = gerar_matriz_de_distancias(grafo, rotulo_para_idx, n)
-    cpp = gerar_tupla_de_cpp(
-        pesos,
-        matriz_distancias,
-        n,
-    )
+    cpp = gerar_tupla_de_cpp(pesos, matriz_distancias, n)
     ordem_nos = gerar_ordem_nos(cpp, n)
 
     CACHE.update(
@@ -135,15 +130,10 @@ def gerar_assinatura(grafo: nx.Graph) -> tuple[tuple, tuple]:
     arestas = tuple(
         sorted(
             (
-                (u, v)
-                if gerar_rotulo_de_comparacao(u) < gerar_rotulo_de_comparacao(v)
-                else (v, u)
+                (u, v) if gerar_rotulo_de_comparacao(u) < gerar_rotulo_de_comparacao(v) else (v, u)
                 for u, v in grafo.edges()
             ),
-            key=lambda x: (
-                gerar_rotulo_de_comparacao(x[0]),
-                gerar_rotulo_de_comparacao(x[1]),
-            ),
+            key=lambda x: (gerar_rotulo_de_comparacao(x[0]), gerar_rotulo_de_comparacao(x[1])),
         )
     )
     return (nos_e_pesos, arestas)
@@ -191,11 +181,7 @@ def gerar_rotulo_para_idx(idx_para_rotulo: tuple, n: int) -> dict:
     return {idx_para_rotulo[i]: i for i in range(n)}
 
 
-def gerar_tupla_de_pesos(
-    grafo: nx.Graph,
-    idx_para_rotulo: tuple,
-    n: int,
-) -> tuple[float, ...]:
+def gerar_tupla_de_pesos(grafo: nx.Graph, idx_para_rotulo: tuple, n: int) -> tuple[float, ...]:
     """
     Gera uma tupla que funciona como um mapeamento do `idx` do nó para seu peso.
 
@@ -284,10 +270,7 @@ def gerar_tupla_de_cpp(
     return tuple(calcular_cpp(u, pesos, matriz_distancias, n) for u in range(n))
 
 
-def gerar_ordem_nos(
-    cpp: tuple[float, ...],
-    n: int,
-) -> tuple[int, ...]:
+def gerar_ordem_nos(cpp: tuple[float, ...], n: int) -> tuple[int, ...]:
     """
     Gera uma tupla dos `idx` ordenada decrescentemente pelo CPP do respectivo nó, a fim de decidir
     a ordem de checagem dos nós (aqueles com maior CPP são mais estratégicos na pontuação, pois
@@ -338,15 +321,15 @@ def avaliar_folha(mask_p1: int, mask_p2: int) -> float:
 
     for v in range(n):  # procurar a menor distância de d1
         d1 = linha_p1_1[v]
-        if linha_p1_2[v] < d1:  # noqa: PLR1730
+        if linha_p1_2[v] < d1:
             d1 = linha_p1_2[v]
-        if linha_p1_3[v] < d1:  # noqa: PLR1730
+        if linha_p1_3[v] < d1:
             d1 = linha_p1_3[v]
 
         d2 = linha_p2_1[v]  # procurar a menor distância de d2
-        if linha_p2_2[v] < d2:  # noqa: PLR1730
+        if linha_p2_2[v] < d2:
             d2 = linha_p2_2[v]
-        if linha_p2_3[v] < d2:  # noqa: PLR1730
+        if linha_p2_3[v] < d2:
             d2 = linha_p2_3[v]
 
         if d1 < d2:  # comparativo entre d1 e d2 para saber a menor distância
@@ -388,9 +371,7 @@ def extrair_tres_centros(bitmask: int) -> tuple[int, int, int]:
     Returns:
         Tripla contendo os três `idx` dos centros escolhidos registrados na bitmask.
     """
-    lsb = (
-        bitmask & -bitmask
-    )  # apaga todos os outros bits e deixa só o mais a direita aceso
+    lsb = bitmask & -bitmask  # apaga todos os outros bits e deixa só o mais a direita aceso
     p1 = lsb.bit_length() - 1  # para descobrir a posicao do bit
     bitmask ^= lsb  # apaga esse bit da bitmask para pegar o próximo
     lsb = bitmask & -bitmask
@@ -401,13 +382,7 @@ def extrair_tres_centros(bitmask: int) -> tuple[int, int, int]:
     return p1, p2, p3
 
 
-def minimax(
-    mask_p1: int,
-    mask_p2: int,
-    profundidade: int,
-    alfa: float,
-    beta: float,
-) -> float:
+def minimax(mask_p1: int, mask_p2: int, profundidade: int, alfa: float, beta: float) -> float:
     """
     Recursivamente busca o jogo perfeito (onde ambos os jogadores fazem a melhor jogada) a partir
     do estado atual do grafo. Também registra os valores encontrados nas jogadas intermediárias
@@ -441,10 +416,10 @@ def minimax(
 
         if flag == "INFERIOR":  # valor beta-podado da opção, o valor real é >=
             # max(valor_salvo, alfa), aumenta o piso da busca
-            alfa = valor_salvo if alfa < valor_salvo else alfa  # noqa: FURB136
+            alfa = valor_salvo if alfa < valor_salvo else alfa
         elif flag == "SUPERIOR":  # valor alfa-podado da opção, o valor real é <=
             # min(valor_salvo, beta), abaixa o teto da busca
-            beta = valor_salvo if beta > valor_salvo else beta  # noqa: FURB136
+            beta = valor_salvo if beta > valor_salvo else beta
 
         # poda alfa-beta: se alfa alcança ou passa de beta, a janela de busca de um melhor valor
         # [alfa,beta] fecha, o que significa que o valor real está fora dela, pois um dos jogadores
@@ -473,26 +448,22 @@ def minimax(
 
         if eh_min:
             # min(melhor_valor, valor)
-            melhor_valor = valor if valor < melhor_valor else melhor_valor  # noqa: FURB136
+            melhor_valor = valor if valor < melhor_valor else melhor_valor
             # se o valor encontrado está abaixo do beta (teto), reduz o teto
-            beta = melhor_valor if melhor_valor < beta else beta  # noqa: FURB136
+            beta = melhor_valor if melhor_valor < beta else beta
         else:
             # max(melhor_valor, valor)
-            melhor_valor = valor if valor > melhor_valor else melhor_valor  # noqa: FURB136
+            melhor_valor = valor if valor > melhor_valor else melhor_valor
             # se o valor encontrado está acima do alfa (piso), aumenta o piso
-            alfa = melhor_valor if melhor_valor > alfa else alfa  # noqa: FURB136
+            alfa = melhor_valor if melhor_valor > alfa else alfa
 
         # poda alfa-beta
         if alfa >= beta:
             break
 
-    if (
-        melhor_valor <= alfa_orig
-    ):  # poda alfa, valor real da opção <= melhor_valor (fail-low)
+    if melhor_valor <= alfa_orig:  # poda alfa, valor real da opção <= melhor_valor (fail-low)
         MEMO[chave_memo] = (melhor_valor, "SUPERIOR")
-    elif (
-        melhor_valor >= beta_orig
-    ):  # poda beta, valor real da opção >= melhor_valor (fail-high)
+    elif melhor_valor >= beta_orig:  # poda beta, valor real da opção >= melhor_valor (fail-high)
         MEMO[chave_memo] = (melhor_valor, "INFERIOR")
     else:  # sem corte, guarda o valor real da opção
         MEMO[chave_memo] = (melhor_valor, "EXATO")
@@ -666,18 +637,10 @@ def filtrar_candidatos_por_melhor_media_de_resposta(
                 continue
 
             p1_apos_r, p2_apos_r = (
-                (p1_apos_c | mask_r, p2_apos_c)
-                if eh_min
-                else (p1_apos_c, p2_apos_c | mask_r)
+                (p1_apos_c | mask_r, p2_apos_c) if eh_min else (p1_apos_c, p2_apos_c | mask_r)
             )
 
-            soma += minimax(
-                p1_apos_r,
-                p2_apos_r,
-                profundidade - 2,
-                float("-inf"),
-                float("+inf"),
-            )
+            soma += minimax(p1_apos_r, p2_apos_r, profundidade - 2, float("-inf"), float("+inf"))
 
         media = soma / total_respostas
 
@@ -731,9 +694,7 @@ def filtrar_candidatos_por_maxima_distancia_minima_dos_centros(
     melhores_candidatos = []
 
     for candidato in candidatos_otimos:
-        distancia_minima_candidato = min(
-            matriz_distancias[candidato][centro] for centro in centros
-        )
+        distancia_minima_candidato = min(matriz_distancias[candidato][centro] for centro in centros)
 
         if distancia_minima_candidato > maxima_distancia_minima_dos_centros:
             maxima_distancia_minima_dos_centros = distancia_minima_candidato
