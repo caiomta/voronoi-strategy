@@ -85,10 +85,13 @@ def atualizar_cache(grafo: nx.Graph) -> None:
 def gerar_assinatura(grafo: nx.Graph) -> tuple[tuple, tuple]:
     """
     Gera a assinatura do grafo (sem times), uma tupla contendo uma tupla ordenada com nós e pesos e
-    outra tupla ordenada com as arestas ordenadas.
+    outra tupla ordenada com as arestas ordenadas, usada como assinatura única do grafo do jogo.
 
     Args:
         grafo: Grafo atual do jogo.
+
+    Returns:
+        Dupla da tupla ordenada de nós e pesos e da tupla ordenada de arestas.
     """
     nos_e_pesos = tuple(
         sorted(
@@ -142,7 +145,7 @@ def gerar_idx_para_rotulo(grafo: nx.Graph) -> tuple:
 
 def gerar_rotulo_para_idx(idx_para_rotulo: tuple, n: int) -> dict:
     """
-    Gera um dicionário que espelha o vetor `idx_para_rótulo`.
+    Gera um dicionário que espelha o vetor `idx_para_rotulo`.
 
     Args:
         idx_para_rotulo: Tupla ordenada dos rótulos dos nós, onde o índice de um rótulo é o `idx`
@@ -192,7 +195,8 @@ def gerar_matriz_de_distancias(
         Matriz onde o valor da posição `(u,v)`, sendo esta uma dupla dos `idx` de dois nós
         quaisquer, é o tamanho do menor caminho entre esses nós.
     """
-    matriz = [[0 for _ in range(n)] for _ in range(n)]
+    inalcancavel = n + 1
+    matriz = [[inalcancavel for _ in range(n)] for _ in range(n)]
 
     distancias_raw = nx.all_pairs_shortest_path_length(grafo)
 
@@ -289,7 +293,7 @@ def avaliar_folha(mask_p1: int, mask_p2: int) -> float:
     n, pesos, matriz_distancias = CACHE.n, CACHE.pesos, CACHE.matriz_distancias
     c1_p1, c2_p1, c3_p1 = extrair_tres_centros(mask_p1)  # extrair os 3 indices
     c1_p2, c2_p2, c3_p2 = extrair_tres_centros(mask_p2)
-    saldo = 0  # acumulador
+    saldo = 0.0  # acumulador
 
     linha_p1_1 = matriz_distancias[c1_p1]  # linhas do time 1
     linha_p1_2 = matriz_distancias[c2_p1]
@@ -363,13 +367,14 @@ def minimax(
         mask_p2: Bitmask dos centros já escolhidos por P2, sendo o i-ésimo bit 1 caso ele possuir
                  um centro no i-ésimo nó.
         profundidade: Quantidade de centros restantes a se posicionar no jogo.
-        alfa: Piso de P1 (que procura MAX em suas jogadas). Melhor valor já encontrado nas outras
+        alfa: Piso de P1 (que procura MAX em suas jogadas). Maior valor já encontrado nas outras
               opções de jogada já checadas até o momento. P1 só escolhe algo igual ou acima a isso.
-        beta: Teto de P2 (que procura MIN em suas jogadas). Pior valor já encontrado nas outras
+        beta: Teto de P2 (que procura MIN em suas jogadas). Menor valor já encontrado nas outras
               opções de jogada já checadas até o momento. P2 só escolhe algo igual ou abaixo disso.
 
     Returns:
-        O valor da melhor jogada encontrado pelo jogador da vez com base no estado atual.
+        A utilidade ótima garantida a partir do estado atual, ou uma cota fail-soft caso ocorra
+        poda.
     """
     if profundidade == 0:  # avaliar valor da folha (profundidade 0)
         return avaliar_folha(mask_p1, mask_p2)
