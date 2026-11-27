@@ -8,7 +8,7 @@ class Cache:
     rotulo_para_idx: dict
     pesos: tuple[float, ...]
     matriz_distancias: tuple[tuple[int, ...], ...]
-    centralidades_ponderadas: tuple[float, ...]
+    cpp: tuple[float, ...]
     ordem_nos: tuple[int, ...]
 
     def update(
@@ -19,7 +19,7 @@ class Cache:
         rotulo_para_idx: dict,
         pesos: tuple[float, ...],
         matriz_distancias: tuple[tuple[int, ...], ...],
-        centralidades_ponderadas: tuple[float, ...],
+        cpp: tuple[float, ...],
         ordem_nos: tuple[int, ...],
     ) -> None:
         self.assinatura = assinatura
@@ -28,7 +28,7 @@ class Cache:
         self.rotulo_para_idx = rotulo_para_idx
         self.pesos = pesos
         self.matriz_distancias = matriz_distancias
-        self.centralidades_ponderadas = centralidades_ponderadas
+        self.cpp = cpp
         self.ordem_nos = ordem_nos
 
 
@@ -47,6 +47,9 @@ def minimax_com_poda_alfa_beta(grafo: nx.Graph): ...
 def atualizar_cache(grafo: nx.Graph) -> None:
     """
     Valida o cache e o atualiza caso o grafo tenha mudado.
+
+    Args:
+        grafo: Grafo atual do jogo.
     """
     assinatura_atual = gerar_assinatura(grafo)
 
@@ -58,14 +61,14 @@ def atualizar_cache(grafo: nx.Graph) -> None:
     idx_para_rotulo = gerar_idx_para_rotulo(grafo)
     n = len(idx_para_rotulo)
     rotulo_para_idx = gerar_rotulo_para_idx(idx_para_rotulo, n)
-    pesos = gerar_vetor_de_pesos(grafo, idx_para_rotulo, n)
+    pesos = gerar_tupla_de_pesos(grafo, idx_para_rotulo, n)
     matriz_distancias = gerar_matriz_de_distancias(grafo, rotulo_para_idx, n)
-    centralidades_ponderadas = gerar_vetor_de_centralidades_ponderadas(
+    cpp = gerar_tupla_de_cpp(
         pesos,
         matriz_distancias,
         n,
     )
-    ordem_nos = gerar_ordem_nos(centralidades_ponderadas, n)
+    ordem_nos = gerar_ordem_nos(cpp, n)
 
     CACHE.update(
         assinatura_atual,
@@ -74,7 +77,7 @@ def atualizar_cache(grafo: nx.Graph) -> None:
         rotulo_para_idx,
         pesos,
         matriz_distancias,
-        centralidades_ponderadas,
+        cpp,
         ordem_nos,
     )
 
@@ -82,7 +85,10 @@ def atualizar_cache(grafo: nx.Graph) -> None:
 def gerar_assinatura(grafo: nx.Graph) -> tuple[tuple, tuple]:
     """
     Gera a assinatura do grafo (sem times), uma tupla contendo uma tupla ordenada com nós e pesos e
-    outra tupla ordenada com as arestas ordenadas
+    outra tupla ordenada com as arestas ordenadas.
+
+    Args:
+        grafo: Grafo atual do jogo.
     """
     nos_e_pesos = tuple(
         sorted(
@@ -110,14 +116,26 @@ def gerar_assinatura(grafo: nx.Graph) -> tuple[tuple, tuple]:
 def gerar_rotulo_de_comparacao(x) -> tuple[str, str]:
     """
     Gera um rótulo para realizar comparação entre objetos de tipos distintos.
+
+    Args:
+        x: Objeto a ser comparado.
+
+    Returns:
+        Dupla do nome do tipo de `x` e o valor em `str` de `x`.
     """
     return (type(x).__name__, str(x))
 
 
 def gerar_idx_para_rotulo(grafo: nx.Graph) -> tuple:
     """
-    Gera um vetor que funciona como uma bijeção do tipo (`idx` -> rótulo), sendo `idx` o índice do
-    rótulo na lista ordenada de rótulos.
+    Gera uma tupla que funciona como uma bijeção do tipo `idx -> rótulo`, sendo `idx` do nó o
+    índice do rótulo na tupla.
+
+    Args:
+        grafo: Grafo atual do jogo.
+
+    Returns:
+        Tupla ordenada dos rótulos dos nós, onde o índice de um rótulo é o `idx` daquele nó.
     """
     return tuple(sorted(grafo.nodes, key=gerar_rotulo_de_comparacao))
 
@@ -125,18 +143,34 @@ def gerar_idx_para_rotulo(grafo: nx.Graph) -> tuple:
 def gerar_rotulo_para_idx(idx_para_rotulo: tuple, n: int) -> dict:
     """
     Gera um dicionário que espelha o vetor `idx_para_rótulo`.
+
+    Args:
+        idx_para_rotulo: Tupla ordenada dos rótulos dos nós, onde o índice de um rótulo é o `idx`
+            daquele nó.
+        n: Quantidade total de nós.
+
+    Returns:
+        Dicionário em que a chave é um rótulo de um nó e o valor é seu `idx`.
     """
     return {idx_para_rotulo[i]: i for i in range(n)}
 
 
-def gerar_vetor_de_pesos(
+def gerar_tupla_de_pesos(
     grafo: nx.Graph,
     idx_para_rotulo: tuple,
     n: int,
 ) -> tuple[float, ...]:
     """
-    Gera um vetor que funciona como uma função do tipo (`idx` -> peso), sendo `idx` o índice do rótulo
-    na lista ordenada de rótulos.
+    Gera uma tupla que funciona como um mapeamento do `idx` do nó para seu peso.
+
+    Args:
+        grafo: Grafo atual do jogo.
+        idx_para_rotulo: Tupla ordenada dos rótulos dos nós, onde o índice de um rótulo é o `idx`
+            daquele nó.
+        n: Quantidade total de nós.
+
+    Returns:
+        Tupla dos pesos dos nós, onde o índice de um peso é o `idx` do respectivo nó.
     """
     return tuple(grafo.nodes[idx_para_rotulo[i]]["peso"] for i in range(n))
 
@@ -147,7 +181,16 @@ def gerar_matriz_de_distancias(
     n: int,
 ) -> tuple[tuple[int, ...], ...]:
     """
-    Gera uma matriz das menores distâncias entre `u` e `v`, sendo `u` e `v` qualquer par de `idx` no grafo.
+    Gera uma matriz das distâncias mínimas entre todos os pares de nós.
+
+    Args:
+        grafo: Grafo atual do jogo.
+        rotulo_para_idx: Dicionário em que a chave é um rótulo de um nó e o valor é seu `idx`.
+        n: Quantidade total de nós.
+
+    Returns:
+        Matriz onde o valor da posição `(u,v)`, sendo esta uma dupla dos `idx` de dois nós
+        quaisquer, é o tamanho do menor caminho entre esses nós.
     """
     matriz = [[0 for _ in range(n)] for _ in range(n)]
 
@@ -162,53 +205,87 @@ def gerar_matriz_de_distancias(
     return tuple(tuple(linha) for linha in matriz)
 
 
-def calcular_centralidade_ponderada(
+def calcular_cpp(
     u: int,
     pesos: tuple[float, ...],
     matriz_distancias: tuple[tuple[int, ...], ...],
     n: int,
 ) -> float:
     """
-    Calcula a centralidade de Proximidade Ponderada de `u`, que mede seu alcance territorial
-    ponderado sobre todo o grafo, indicando o quão bem posicionado `u` está em relação a regiões
-    de pesos altos.
+    Calcula a Centralidade de Proximidade Ponderada (CPP) do nó `u`, que mede seu alcance
+    territorial ponderado sobre todo o grafo, indicando o quão bem posicionado `u` está em relação
+    a regiões de pesos altos.
+
+    Args:
+        u: `idx` do nó a calcular a centralidade de proximidade ponderada.
+        pesos: Tupla de pesos.
+        matriz_distancias: Matriz das distâncias mínimas entre todos os pares de nós.
+        n: Quantidade total de nós.
+
+    Returns:
+        CPP do nó `u`.
     """
     return sum(pesos[v] / (matriz_distancias[u][v] + 1) for v in range(n))
 
 
-def gerar_vetor_de_centralidades_ponderadas(
+def gerar_tupla_de_cpp(
     pesos: tuple[float, ...],
     matriz_distancias: tuple[tuple[int, ...], ...],
     n: int,
 ) -> tuple[float, ...]:
     """
-    Gera o vetor da imagem da função que calcula a centralidade ponderada que conta com domínio os
-    `idx` do grafo.
+    Gera uma tupla da imagem da função que calcula a CPP que conta com domínio os `idx` do grafo.
+
+    Args:
+        pesos: Tupla de pesos.
+        matriz_distancias: Matriz das distâncias mínimas entre todos os pares de nós.
+        n: Quantidade total de nós.
+
+    Returns:
+        Tupla das CPP, onde o índice é o `idx` do respectivo nó.
     """
-    return tuple(
-        calcular_centralidade_ponderada(u, pesos, matriz_distancias, n)
-        for u in range(n)
-    )
+    return tuple(calcular_cpp(u, pesos, matriz_distancias, n) for u in range(n))
 
 
 def gerar_ordem_nos(
-    centralidades_ponderadas: tuple[float, ...],
+    cpp: tuple[float, ...],
     n: int,
 ) -> tuple[int, ...]:
     """
-    Gera um vetor ordenado dos `idx` daquele com a maior centralidade ponderada até aquele com a
-    menor.
+    Gera uma tupla dos `idx` ordenada decrescentemente pelo CPP do respectivo nó, a fim de decidir
+    a ordem de checagem dos nós (aqueles com maior CPP são mais estratégicos na pontuação, pois
+    compreendem uma área ponderada maior).
+
+    Args:
+        cpp: Tupla das CPP, onde o índice é o `idx` do respectivo nó.
+        n: Quantidade total de nós.
+
+    Returns:
+        Tupla dos `idx` ordenada decrescentemente pelo CPP do respectivo nó.
     """
     return tuple(
         sorted(
             range(n),
-            key=lambda u: centralidades_ponderadas[u],
+            key=lambda u: cpp[u],
             reverse=True,
         )
     )
 
-  
+
 def avaliar_folha(mask_p1: int, mask_p2: int) -> float:
+    """
+    Avalia uma folha da árvore de estados do jogo por meio dos bitmasks de P1 e P2 e retorna a
+    diferença entre as pontuações deles. Uma diferença maior é vantajosa para P1, o contrário,
+    para P2. Esta função só deve ser utilizada no cenário em que ambos os jogadores já escolheram
+    todos os seus centros.
+
+    Args:
+        mask_p1: Bitmask dos centros escolhidos por P1.
+        mask_p2: Bitmask dos centros escolhidos por P2.
+
+    Returns:
+        Diferença entre as pontuações de P1 e P2 no estado atual.
+    """
     n, pesos, matriz_distancias = CACHE.n, CACHE.pesos, CACHE.matriz_distancias
     c1_p1, c2_p1, c3_p1 = extrair_tres_centros(mask_p1)  # extrair os 3 indices
     c1_p2, c2_p2, c3_p2 = extrair_tres_centros(mask_p2)
@@ -244,16 +321,26 @@ def avaliar_folha(mask_p1: int, mask_p2: int) -> float:
     return saldo
 
 
-def extrair_tres_centros(mascara: int) -> tuple[int, int, int]:
+def extrair_tres_centros(bitmask: int) -> tuple[int, int, int]:
+    """
+    Extrai os três `idx` dos centros escolhidos registrados na bitmask. Esta função só deve ser
+    utilizada se os 3 centros tiverem sido escolhidos.
+
+    Args:
+        bitmask: Bitmask dos centros escolhidos.
+
+    Returns:
+        Tripla contendo os três `idx` dos centros escolhidos registrados na bitmask.
+    """
     lsb = (
-        mascara & -mascara
+        bitmask & -bitmask
     )  # apaga todos os outros bits e deixa só o mais a direita aceso
     p1 = lsb.bit_length() - 1  # para descobrir a posicao do bit
-    mascara ^= lsb  # apaga esse bit da mascara para pegar o próximo
-    lsb = mascara & -mascara
+    bitmask ^= lsb  # apaga esse bit da bitmask para pegar o próximo
+    lsb = bitmask & -bitmask
     p2 = lsb.bit_length() - 1
-    mascara ^= lsb
-    lsb = mascara & -mascara
+    bitmask ^= lsb
+    lsb = bitmask & -bitmask
     p3 = lsb.bit_length() - 1
     return p1, p2, p3
 
