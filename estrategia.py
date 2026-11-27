@@ -1,7 +1,26 @@
 import networkx as nx
 
+EPS = 1e-9
+GUARDA_C1 = {5: 6, 6: 2}
+
 
 class Cache:
+    """
+    Armazena os dados estáticos pré-computados do grafo atual do jogo para evitar recálculos
+    entre rodadas e partidas disputadas no mesmo mapa.
+
+    Attributes:
+        assinatura: Assinatura estrutural imutável do grafo (nós com pesos e arestas ordenadas),
+            ou `None` caso o cache ainda não tenha sido inicializado.
+        n: Quantidade total de nós do grafo.
+        idx_para_rotulo: Tupla ordenada dos rótulos dos nós, onde o índice é o `idx` do nó.
+        rotulo_para_idx: Dicionário que mapeia cada rótulo de nó ao seu respectivo `idx`.
+        pesos: Tupla dos pesos dos nós, indexada pelo `idx` do respectivo nó.
+        matriz_distancias: Matriz das distâncias mínimas entre todos os pares de `idx`.
+        cpp: Tupla da Centralidade de Proximidade Ponderada (CPP) de cada nó, indexada por `idx`.
+        ordem_nos: Tupla dos `idx` ordenada decrescentemente pela CPP de cada nó.
+    """
+
     assinatura: tuple[tuple, tuple] | None = None
     n: int
     idx_para_rotulo: tuple
@@ -22,6 +41,19 @@ class Cache:
         cpp: tuple[float, ...],
         ordem_nos: tuple[int, ...],
     ) -> None:
+        """
+        Atualiza todos os atributos do cache com os dados pré-computados de um novo grafo.
+
+        Args:
+            assinatura: Assinatura estrutural imutável do novo grafo.
+            n: Quantidade total de nós do grafo.
+            idx_para_rotulo: Tupla ordenada dos rótulos dos nós, onde o índice é o `idx` do nó.
+            rotulo_para_idx: Dicionário que mapeia cada rótulo de nó ao seu respectivo `idx`.
+            pesos: Tupla dos pesos dos nós, indexada pelo `idx` do respectivo nó.
+            matriz_distancias: Matriz das distâncias mínimas entre todos os pares de `idx`.
+            cpp: Tupla da Centralidade de Proximidade Ponderada (CPP) de cada nó, indexada por `idx`.
+            ordem_nos: Tupla dos `idx` ordenada decrescentemente pela CPP de cada nó.
+        """
         self.assinatura = assinatura
         self.n = n
         self.idx_para_rotulo = idx_para_rotulo
@@ -32,6 +64,7 @@ class Cache:
         self.ordem_nos = ordem_nos
 
 
+# Cache e memoização de estados intermediários
 CACHE = Cache()
 MEMO: dict[tuple[int, int], tuple[float, str]] = {}
 """
@@ -325,6 +358,25 @@ def avaliar_folha(mask_p1: int, mask_p2: int) -> float:
     return saldo
 
 
+def extrair_centros(bitmask: int) -> list[int]:
+    """
+    Extrai todos os `idx` dos centros escolhidos registrados na bitmask, independentemente da
+    quantidade.
+
+    Args:
+        bitmask: Bitmask dos centros escolhidos.
+
+    Returns:
+        Lista contendo todos os `idx` dos centros escolhidos registrados na bitmask.
+    """
+    centros = []
+    while bitmask:
+        lsb = bitmask & -bitmask
+        centros.append(lsb.bit_length() - 1)
+        bitmask ^= lsb
+    return centros
+
+
 def extrair_tres_centros(bitmask: int) -> tuple[int, int, int]:
     """
     Extrai os três `idx` dos centros escolhidos registrados na bitmask. Esta função só deve ser
@@ -403,18 +455,21 @@ def minimax(
     eh_min = bool(profundidade % 2)  # profundidade ímpar -> MIN, par -> MAX
     melhor_valor = float("+inf") if eh_min else float("-inf")
     mask_jogo = mask_p1 | mask_p2  # bitwise or gerando o bitmask geral do jogo
-    for i in CACHE.ordem_nos:
+    ordem_nos = CACHE.ordem_nos
+
+    for i in ordem_nos:
         mask_no_atual = 1 << i
+
         if mask_jogo & mask_no_atual:  # se o i-ésimo bit estiver ocupado
             continue
 
-        next_mask_p1, next_mask_p2 = (
+        p1_apos_i, p2_apos_i = (
             (mask_p1, mask_p2 | mask_no_atual)  # p2 joga em i se profundidade ímpar
             if eh_min
             else (mask_p1 | mask_no_atual, mask_p2)  # p1 joga em i se profundidade par
         )
 
-        valor = minimax(next_mask_p1, next_mask_p2, profundidade - 1, alfa, beta)
+        valor = minimax(p1_apos_i, p2_apos_i, profundidade - 1, alfa, beta)
 
         if eh_min:
             # min(melhor_valor, valor)
@@ -443,3 +498,247 @@ def minimax(
         MEMO[chave_memo] = (melhor_valor, "EXATO")
 
     return melhor_valor
+
+
+def decidir_jogada(mask_p1: int, mask_p2: int, profundidade: int) -> int:
+    """
+    Executa o processo de decisão do centro escolhido na rodada atual do jogo, retornando o nó com
+    a valoração mais favorável considerando uma constante de relaxamento `EPS` (para o jogador da
+    rodada atual) no retorno da execução do `minimax` com poda, caso ele seja o único com tal
+    valoração. Senão, aplica uma série de critérios de desempate, com relaxamento, na tentativa de
+    selecionar um único nó, retornando-o se possível. Se não for possível, retorna o candidato com
+    o menor `idx`.
+
+    Os critérios são:
+    1. Melhor média de resposta;
+    2. Maior CPP;
+    3. Máxima Distância Mínima dos Centros.
+
+    Args:
+        mask_p1: Bitmask do P1.
+        mask_p2: Bitmask do P2.
+        profundidade: Quantidade de centros restantes a se posicionar no jogo.
+
+    Returns:
+        `idx` do centro escolhido.
+    """
+    n = CACHE.n
+    eh_min = bool(profundidade % 2)
+    mask_jogo = mask_p1 | mask_p2
+    melhor_valor = float("+inf") if eh_min else float("-inf")
+    candidatos_otimos = []
+    ordem_nos = CACHE.ordem_nos
+
+    for i in ordem_nos:
+        mask_i = 1 << i
+
+        if mask_jogo & mask_i:
+            continue
+
+        if eh_min:
+            valor = minimax(
+                mask_p1,
+                mask_p2 | mask_i,
+                profundidade - 1,
+                float("-inf"),
+                melhor_valor + EPS,
+            )
+        else:
+            valor = minimax(
+                mask_p1 | mask_i,
+                mask_p2,
+                profundidade - 1,
+                melhor_valor - EPS,
+                float("+inf"),
+            )
+
+        if abs(valor - melhor_valor) <= EPS:
+            candidatos_otimos.append(i)
+        elif (eh_min and valor < melhor_valor) or (not eh_min and valor > melhor_valor):
+            melhor_valor = valor
+            candidatos_otimos = [i]
+
+    if len(candidatos_otimos) == 1:
+        return candidatos_otimos[0]
+
+    # Critério 1: Melhor Média de Resposta
+    if liberar_c1(profundidade, len(candidatos_otimos), n):
+        candidatos_otimos = filtrar_candidatos_por_melhor_media_de_resposta(
+            candidatos_otimos,
+            mask_p1,
+            mask_p2,
+            mask_jogo,
+            profundidade,
+            eh_min,
+        )
+
+        if len(candidatos_otimos) == 1:
+            return candidatos_otimos[0]
+
+    # Critério 2: Maior CPP
+    candidatos_otimos = filtrar_candidatos_por_maior_cpp(candidatos_otimos)
+    if len(candidatos_otimos) == 1:
+        return candidatos_otimos[0]
+
+    # Critério 3: Maior Distância Mínima dos Centros
+    mask_propria = mask_p2 if eh_min else mask_p1
+    candidatos_otimos = filtrar_candidatos_por_maxima_distancia_minima_dos_centros(
+        candidatos_otimos,
+        mask_propria,
+    )
+    if len(candidatos_otimos) == 1:
+        return candidatos_otimos[0]
+
+    # Critério 4: Menor `idx`
+    return min(candidatos_otimos)
+
+
+def liberar_c1(profundidade: int, len_candidatos_otimos: int, n: int) -> bool:
+    """
+    Checa se é possível utilizar o Critério 1 de desempate e se seu custo vale a pena. Caso a
+    profundidade seja <= 1, não há resposta possível, não sendo possível usar a média de valoração
+    das respostas como desempate. Usar o C1 em profundidade >4 tira muito da performance da poda
+    alfa beta devido a diversas checagens em galhos podados da árvore de estados, por isso o C1 é
+    aplicado somente quando há pouquíssimos candidatos neste caso, ou quando há <= 15 nós no grafo
+    do jogo. O número exato de candidatos máximos aceitos é estabelecido pela constante
+    `GUARDA_C1`. Caso haja 1 < profundidade <= 4, não há empecilho algum para o uso do C1.
+
+    Args:
+        profundidade: Quantidade de centros restantes a se posicionar no jogo.
+        len_candidatos_otimos: Quantidade de candidatos ótimos.
+        n: Quantidade total de nós no grafo do jogo.
+
+    Returns:
+        `True` se for possível e valer a pena utilizar o Critério 1 de desempate, senão `False`.
+    """
+    if profundidade <= 1:
+        return False
+    if n <= 15:
+        return True
+    if profundidade in GUARDA_C1:
+        return len_candidatos_otimos <= GUARDA_C1[profundidade]
+    return True
+
+
+def filtrar_candidatos_por_melhor_media_de_resposta(
+    candidatos_otimos: list[int],
+    mask_p1: int,
+    mask_p2: int,
+    mask_jogo: int,
+    profundidade: int,
+    eh_min: bool,
+) -> list[int]:
+    """
+    Filtra os candidatos ótimos, mantendo apenas aqueles cuja média de valoração de resposta
+    se encontra na janela da mais favorável entre os candidatos, relaxada por ±`EPS`.
+
+    Args:
+        candidatos_otimos: Lista dos melhores candidatos a centro escolhido.
+        mask_p1: Bitmask do P1.
+        mask_p2: Bitmask do P2.
+        mask_jogo: Bitmask geral do jogo (bitwise or das bitmasks dos dois jogadores).
+        profundidade: Quantidade de centros restantes a se posicionar no jogo.
+        eh_min: Se o jogador atual busca a menor valoração.
+
+    Returns:
+        Lista de candidatos ótimos filtrada.
+    """
+    ordem_nos, n = CACHE.ordem_nos, CACHE.n
+    total_respostas = (
+        n - 7 + profundidade
+    )  # quantidade de respostas possíveis a qualquer jogada candidata
+    melhor_media = float("+inf") if eh_min else float("-inf")
+    melhores_candidatos = []
+
+    for c in candidatos_otimos:
+        mask_c = 1 << c
+
+        p1_apos_c, p2_apos_c = (
+            (mask_p1, mask_p2 | mask_c) if eh_min else (mask_p1 | mask_c, mask_p2)
+        )
+        prox_mask_jogo = mask_jogo | mask_c
+
+        soma = 0.0
+        for r in ordem_nos:
+            mask_r = 1 << r
+
+            if prox_mask_jogo & mask_r:
+                continue
+
+            p1_apos_r, p2_apos_r = (
+                (p1_apos_c | mask_r, p2_apos_c)
+                if eh_min
+                else (p1_apos_c, p2_apos_c | mask_r)
+            )
+
+            soma += minimax(
+                p1_apos_r,
+                p2_apos_r,
+                profundidade - 2,
+                float("-inf"),
+                float("+inf"),
+            )
+
+        media = soma / total_respostas
+
+        if abs(media - melhor_media) <= EPS:
+            melhores_candidatos.append(c)
+        elif (eh_min and media < melhor_media) or (not eh_min and media > melhor_media):
+            melhor_media = media
+            melhores_candidatos = [c]
+
+    return melhores_candidatos
+
+
+def filtrar_candidatos_por_maior_cpp(candidatos_otimos: list[int]) -> list[int]:
+    """
+    Filtra os candidatos ótimos, mantendo apenas aqueles cuja CPP se encontra na janela da maior
+    entre os candidatos, relaxada por ±`EPS`.
+
+    Args:
+        candidatos_otimos: Lista dos melhores candidatos a centro escolhido.
+
+    Returns:
+        Lista de candidatos ótimos filtrada.
+    """
+    cpp = CACHE.cpp
+    melhor_cpp = max(cpp[c] for c in candidatos_otimos)
+    return [c for c in candidatos_otimos if abs(cpp[c] - melhor_cpp) <= EPS]
+
+
+def filtrar_candidatos_por_maxima_distancia_minima_dos_centros(
+    candidatos_otimos: list[int],
+    mask_propria: int,
+) -> list[int]:
+    """
+    Filtra os candidatos ótimos, mantendo apenas aqueles cuja distância até o centro próprio mais
+    próximo é a máxima entre os candidatos. Quando `mask_propria == 0`, retorna a lista de
+    candidatos inalterada.
+
+    Args:
+        candidatos_otimos: Lista dos melhores candidatos a centro escolhido.
+        mask_propria: Bitmask do jogador atual.
+
+    Returns:
+        Lista de candidatos ótimos filtrada.
+    """
+    if not mask_propria:
+        return candidatos_otimos
+
+    matriz_distancias = CACHE.matriz_distancias
+    centros = extrair_centros(mask_propria)
+    maxima_distancia_minima_dos_centros = -1
+    melhores_candidatos = []
+
+    for candidato in candidatos_otimos:
+        distancia_minima_candidato = min(
+            matriz_distancias[candidato][centro] for centro in centros
+        )
+
+        if distancia_minima_candidato > maxima_distancia_minima_dos_centros:
+            maxima_distancia_minima_dos_centros = distancia_minima_candidato
+            melhores_candidatos = [candidato]
+        elif distancia_minima_candidato == maxima_distancia_minima_dos_centros:
+            melhores_candidatos.append(candidato)
+
+    return melhores_candidatos
