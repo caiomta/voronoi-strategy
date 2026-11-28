@@ -779,3 +779,6 @@ def filtrar_candidatos_por_maxima_distancia_minima_dos_centros(
             melhores_candidatos.append(candidato)
 
     return melhores_candidatos
+
+
+estrategia = estrategia_clemente_v
