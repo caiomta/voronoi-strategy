@@ -1,0 +1,41 @@
+line-length = 100
+target-version = "py315"
+
+extend-exclude = [
+  "migrations",
+  "build",
+  "dist",
+]
+
+[format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "auto"
+docstring-code-format = true
+
+[lint]
+# E, W: PEP 8 essencial
+# F: Erros reais e variáveis/imports não usados (Pyflakes)
+# I: Organização automática de imports (isort)
+# UP: Moderniza o código para sintaxe do Python 3.15
+# B: Pega bugs comuns e armadilhas do Python (Bugbear)
+# SIM: Sugere simplificações de código
+# RUF: Regras exclusivas e úteis do próprio Ruff
+select = [
+  "E",
+  "W",
+  "F",
+  "I",
+  "UP",
+  "B",
+  "SIM",
+  "RUF",
+]
+
+# Deixa o formatador cuidar da quebra de linha sem o linter reclamar
+ignore = [
+  "E501",
+]
+
+[lint.isort]
+combine-as-imports = true
