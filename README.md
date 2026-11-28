@@ -76,7 +76,7 @@ Como a ordem em que os centros são escolhidos não altera as distâncias finais
 * `extrair_bitmasks(grafo, idx_para_rotulo)` retorna `(mask_t1, mask_t2)` correspondentes aos vértices com `time == 1` e `time == 2`.
 * A profundidade restante é calculada automaticamente por:
 
-$$\text{profundidade} = 6 - \text{qtd\_centros\_escolhidos}$$
+$$\text{profundidade} = 6 - \texttt{qtd\_centros\_escolhidos}$$
 
 onde `qtd_centros_escolhidos = (mask_p1 | mask_p2).bit_count()`.
 * **Sistema de coordenadas fixo ($P_1$ vs. $P_2$):** $P_1$ é sempre quem inicia a partida (nó **MAX**, `profundidade` par: $6, 4, 2$) e $P_2$ é sempre o segundo jogador (nó **MIN**, `profundidade` ímpar: $5, 3, 1$). Quando `profundidade % 2` é ímpar, `estrategia_clemente_v` inverte `mask_p1, mask_p2 = mask_p2, mask_p1` para manter a perspectiva global fixa durante toda a busca e entre as duas partidas do confronto.
@@ -127,7 +127,7 @@ Na raiz, `decidir_jogada(mask_p1, mask_p2, profundidade) -> int` coleta todos os
 4. **Critério 3 — Máxima Distância Mínima dos Centros / Anti-Canibalização (`filtrar_candidatos_por_maxima_distancia_minima_dos_centros` e `extrair_centros`):**
    * Define `mask_propria = mask_p2 if eh_min else mask_p1`. Se `mask_propria == 0`, retorna os candidatos inalterados; caso contrário, extrai os centros próprios já posicionados e mantém os candidatos que maximizam:
 
-$$\max_{u} \min_{a \in \text{meus\_centros}} D[u][a]$$
+$$\max_{u} \min_{a \in \texttt{meus\_centros}} D[u][a]$$
 
 5. **Critério 4 — Menor `idx`:**
    * Persistindo o empate, retorna `min(candidatos_otimos)`, assegurando determinismo total.
