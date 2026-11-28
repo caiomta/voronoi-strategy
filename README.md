@@ -127,7 +127,7 @@ Na raiz, `decidir_jogada(mask_p1, mask_p2, profundidade) -> int` coleta todos os
 4. **Critério 3 — Máxima Distância Mínima dos Centros / Anti-Canibalização (`filtrar_candidatos_por_maxima_distancia_minima_dos_centros` e `extrair_centros`):**
    * Define `mask_propria = mask_p2 if eh_min else mask_p1`. Se `mask_propria == 0`, retorna os candidatos inalterados; caso contrário, extrai os centros próprios já posicionados e mantém os candidatos que maximizam:
 
-$$\max_{u} \min_{a \in \texttt{meus\_centros}} D[u][a]$$
+$$\max_{u} \min_{a \in \texttt{meus_centros}} D[u][a]$$
 
 5. **Critério 4 — Menor `idx`:**
    * Persistindo o empate, retorna `min(candidatos_otimos)`, assegurando determinismo total.
