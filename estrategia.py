@@ -73,35 +73,49 @@ Estrutura:
 """
 
 
-def minimax_com_poda_alfa_beta(grafo: nx.Graph):
+# ESTRATÉGIA CLEMENTE-V
+def estrategia_clemente_v(grafo: nx.Graph):
+    """
+    Função principal da estratégia CLEMENTE-V.
+
+    Args:
+        grafo: Grafo atual do jogo.
+
+    Returns:
+        Rótulo do centro escolhido.
+
+    Raises:
+        ValueError: Quando o grafo tem menos de 6 nós, ou a profundidade não está em [1,6], ou o
+            índice do centro escolhido ou rótulo não são válidos, ou caso o centro já tenha sido
+            escolhido anteriormente.
+
+    ## Autores
+        - Caio Tenório
+        - Lucas de Oliveira
+        - Matheus do Carmo
+        - Natália Bourbon
+        - Thiago Ramalho
+        - Vinicius da Fonseca
+    """
     atualizar_cache(grafo)
-    idx_para_rotulo = CACHE.idx_para_rotulo
-    mask_time_1 = 0
-    mask_time_2 = 0
+    idx_para_rotulo, n = CACHE.idx_para_rotulo, CACHE.n
 
-    for i, rotulo in enumerate(idx_para_rotulo):
-        time = grafo.nodes[rotulo]["time"]
-        if time == 1:
-            mask_time_1 |= 1 << i
-        elif time == 2:
-            mask_time_2 |= 1 << i
-        elif time == 0:
-            continue
+    if n < 6:
+        raise ValueError("O grafo tem menos de 6 nós, portanto é inválido para o jogo de Voronoi")
 
-    qtd_1 = mask_time_1.bit_count()
-    qtd_2 = mask_time_2.bit_count()
-    profundidade = 6 - (qtd_1 + qtd_2)
+    mask_p1, mask_p2 = extrair_bitmasks(grafo, idx_para_rotulo)
+    qtd_centros_escolhidos = (mask_p1 | mask_p2).bit_count()
+    profundidade = 6 - qtd_centros_escolhidos
 
-    if profundidade % 2 == 0:
-        mask_P1 = mask_time_1
-        mask_P2 = mask_time_2
-    else:
-        mask_P1 = mask_time_2
-        mask_P2 = mask_time_1
+    if not (1 <= profundidade <= 6):
+        raise ValueError(f"Profundidade {profundidade} é inválida.")
 
-    idx_escolhido = decidir_jogada(mask_P1, mask_P2, profundidade)
+    if profundidade % 2:
+        mask_p1, mask_p2 = mask_p2, mask_p1
 
-    if not 0 <= idx_escolhido < len(idx_para_rotulo):
+    idx_escolhido = decidir_jogada(mask_p1, mask_p2, profundidade)
+
+    if not (0 <= idx_escolhido < n):
         raise ValueError(f"Índice de jogada inválido: {idx_escolhido!r}.")
 
     rotulo_escolhido = idx_para_rotulo[idx_escolhido]
@@ -329,6 +343,29 @@ def gerar_ordem_nos(cpp: tuple[float, ...], n: int) -> tuple[int, ...]:
             reverse=True,
         )
     )
+
+
+def extrair_bitmasks(grafo: nx.Graph, idx_para_rotulo: tuple) -> tuple[int, int]:
+    """
+    Extrai as bitmasks dos times 1 e 2 a partir do grafo do jogo. Na bitmask do time `n`, o i-ésimo
+    bit é 1 se, e somente se, o nó com o i-ésimo rótulo de `idx_para_rotulo` tiver `time == n`.
+
+    Args:
+        grafo: Grafo atual do jogo.
+        idx_para_rotulo: Tupla ordenada dos rótulos dos nós, onde o `idx` daquele nó é o índice de
+            seu rótulo.
+
+    Returns:
+        Dupla das bitmasks dos times 1 e 2.
+    """
+    mask_t1 = mask_t2 = 0
+    for idx, rotulo in enumerate(idx_para_rotulo):
+        time = grafo.nodes[rotulo]["time"]
+        if time == 1:
+            mask_t1 |= 1 << idx
+        elif time == 2:
+            mask_t2 |= 1 << idx
+    return mask_t1, mask_t2
 
 
 def avaliar_folha(mask_p1: int, mask_p2: int) -> float:
@@ -562,7 +599,7 @@ def decidir_jogada(mask_p1: int, mask_p2: int, profundidade: int) -> int:
                 float("+inf"),
             )
 
-        if abs(valor - melhor_valor) <= EPS:
+        if abs(valor - melhor_valor) < EPS:
             candidatos_otimos.append(i)
         elif (eh_min and valor < melhor_valor) or (not eh_min and valor > melhor_valor):
             melhor_valor = valor
@@ -683,7 +720,7 @@ def filtrar_candidatos_por_melhor_media_de_resposta(
 
         media = soma / total_respostas
 
-        if abs(media - melhor_media) <= EPS:
+        if abs(media - melhor_media) < EPS:
             melhores_candidatos.append(c)
         elif (eh_min and media < melhor_media) or (not eh_min and media > melhor_media):
             melhor_media = media
@@ -705,7 +742,7 @@ def filtrar_candidatos_por_maior_cpp(candidatos_otimos: list[int]) -> list[int]:
     """
     cpp = CACHE.cpp
     melhor_cpp = max(cpp[c] for c in candidatos_otimos)
-    return [c for c in candidatos_otimos if abs(cpp[c] - melhor_cpp) <= EPS]
+    return [c for c in candidatos_otimos if abs(cpp[c] - melhor_cpp) < EPS]
 
 
 def filtrar_candidatos_por_maxima_distancia_minima_dos_centros(
