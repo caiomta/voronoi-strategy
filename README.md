@@ -76,7 +76,7 @@ Como a ordem em que os centros são escolhidos não altera as distâncias finais
 * `extrair_bitmasks(grafo, idx_para_rotulo)` retorna `(mask_t1, mask_t2)` correspondentes aos vértices com `time == 1` e `time == 2`.
 * A profundidade restante é calculada automaticamente por:
 
-$$\text{profundidade} = 6 - \texttt{qtd\_centros\_escolhidos}$$
+$$\text{profundidade} = 6 - \texttt{qtd\\_centros\\_escolhidos}$$
 
 onde `qtd_centros_escolhidos = (mask_p1 | mask_p2).bit_count()`.
 * **Sistema de coordenadas fixo ($P_1$ vs. $P_2$):** $P_1$ é sempre quem inicia a partida (nó **MAX**, `profundidade` par: $6, 4, 2$) e $P_2$ é sempre o segundo jogador (nó **MIN**, `profundidade` ímpar: $5, 3, 1$). Quando `profundidade % 2` é ímpar, `estrategia_clemente_v` inverte `mask_p1, mask_p2 = mask_p2, mask_p1` para manter a perspectiva global fixa durante toda a busca e entre as duas partidas do confronto.
